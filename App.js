@@ -1,17 +1,31 @@
-import React from 'react';
-import { StyleSheet, View, Text, Button, Image, ScrollView } from 'react-native';
+import React, {useState, useEffect} from 'react';
+import { 
+  StyleSheet, 
+  View, Text, 
+  Button, Image, 
+  ScrollView, Dimensions, Alert
+} from 'react-native';
+import MapView from 'react-native-maps';
+import {Marker, Callout} from 'react-native-maps';
+import * as Location from 'expo-location';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 
 
 function HomeScreen({ navigation }) {
   return (
-    <View style={styles.main}>
+    <View style={styles.home}>
       <Text>Home screen</Text>
-      <Button style={styles.submit} 
-        title="Tour"
-        onPress={() => navigation.navigate("Tour")}
-      />
+      <View>
+        <Button style={styles.submit} 
+          title="Tour"
+          onPress={() => navigation.navigate("Tour")}
+        />
+        <Button style={styles.submit}
+          title="Map"
+          onPress={() => navigation.navigate("Map")}
+        />
+      </View>
     </View>
   );
 }
@@ -71,6 +85,57 @@ function TourScreen() {
   );
 }
 
+function MapScreen() {
+  const [location, setLocation] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
+  
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestPermissionsAsync();
+      if (status !== 'granted') {
+        setErrorMsg('Permission to access location was denied');
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      location = location.coords;
+      setLocation(location);
+    })();
+  }, []);
+
+  let text = "Waiting...";
+  if (errorMsg) {
+    text = errorMsg;
+  } else if (location) {
+    text = JSON.stringify(location);
+  } else {
+    return (<Text style={{flex:1,alignSelf:'center'}}>{text}</Text>);
+  }
+
+  return (
+    <View style={styles.main}>
+      <MapView style={styles.map} 
+        initialRegion={{
+          latitude: location.latitude,
+          longitude: location.longitude,
+          latitudeDelta: 0.0022,
+          longitudeDelta: 0.0421,
+        }}>
+          <Marker draggable 
+            coordinate={location}
+            onDragEnd={(e) => {setLocation(e.nativeEvent.coordinate); Alert.alert(`${location.latitude}, ${location.longitude}`)}}
+          >
+            <Callout style={{width:100}}>
+              <View>
+                <Text style={{fontSize: 12}}>This is description</Text>
+              </View>
+            </Callout>
+          </Marker>
+      </MapView>
+    </View>
+  );
+}
+
 const Stack = createStackNavigator();
 
 export default function App() {
@@ -79,6 +144,7 @@ export default function App() {
       <Stack.Navigator initialRouteName="Home">
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Tour" component={TourScreen} options={{title:"Туры"}} />
+        <Stack.Screen name="Map" component={MapScreen} options={{title:"Карта"}} />
       </Stack.Navigator>
     </NavigationContainer>
   );
@@ -91,6 +157,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: '5%',
+  },
+  home: {
+    flexGrow: 1,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   card: {
     flex: 1,
@@ -140,5 +212,9 @@ const styles = StyleSheet.create({
   detail: {
     fontSize: 22,
     color: '#409ef8',
+  },
+  map: {
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height,
   }
 });
